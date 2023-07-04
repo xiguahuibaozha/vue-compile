@@ -1,6 +1,6 @@
 import { renderToString  } from 'vue/server-renderer'
 import { createSSRApp, toDisplayString, createElementBlock, ref } from 'vue'
-import Page from './bound.js'
+import Page from './index.js'
 import Component from './component.js'
 
 const compositionComponent = (component) => {

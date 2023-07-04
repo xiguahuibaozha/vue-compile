@@ -1,41 +1,67 @@
-import { ref } from 'vue'
-import Component from './component.js'
+import { parse, compileScript, compileTemplate, rewriteDefault, compileStyle } from 'vue/compiler-sfc'
+import fs from 'fs'
+import * as swc from '@swc/core'
 
+const fileName = 'index'
 
-const _sfc_main_ = {
-  setup(__props, { expose: __expose }) {
-  __expose();
+const file = fs.readFileSync('./'+fileName+'.vue', 'utf8')
 
-const person = ref({
-    name: '张三'
+const { descriptor, error } = parse(file)
+
+// const r = await swc.parse(descriptor.scriptSetup.content)
+// console.log('r', r);
+
+// 这个 id 是 scopeId，用于 css scope，保证唯一即可
+const id = Date.now().toString();
+const scopeId = `data-v-${id}`;
+
+// 编译script
+// 编译 script 的目的有如下几个：
+// 处理 script setup 的代码， script setup 的代码是不能直接运行的，需要进行转换。
+// 合并 script 和 script setup 的代码。
+// 处理 CSS 变量注入
+const script = compileScript(descriptor, {id: scopeId})
+console.log('script', script);
+
+// Object.values(script.imports).forEach(item => {
+//     if(/\.vue$/.test(item.source)){
+
+//     }
+// })
+
+// 编译 template
+// 编译 template，目的是将 template 转成 render 函数
+let template = compileTemplate({
+    source: descriptor.template.content,
+    filename: "main.vue",// 用于错误提示
+    id: scopeId
 })
+// 将代码编译
+// template = await swc.transform(template)
 
-const btnClick = () => {
-    person.name = '李四'
+// 编译 style
+// 一个 Vue 文件，可能有多个 style 标签
+// sass , less 需要交给其他预处理器以及后处理器，进行处理
+for (const styleBlock of descriptor.styles) {
+    const styleCode = compileStyle({
+        source: styleBlock.content,
+        id,		// style 的 scope id，
+        filename: "main.vue",
+        scoped: styleBlock.scoped,
+    });
 }
 
-const __returned__ = { person, btnClick, ref, get Component() { return Component } }
-Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true })
-return __returned__
-}
+// rewriteDefault：重写default
+// 将 scriptSetup 与 render组合
+const codeList = []
 
-}
-import { toDisplayString as _toDisplayString, createElementVNode as _createElementVNode, resolveComponent as _resolveComponent, createVNode as _createVNode, createTextVNode as _createTextVNode, openBlock as _openBlock, createElementBlock as _createElementBlock } from "vue"
+codeList.push(rewriteDefault(script.content, '_sfc_main_'))
+codeList.push(template.code)
+codeList.push('_sfc_main_.render = render')
+codeList.push('export default _sfc_main_')
 
-const _hoisted_1 = { class: "d" }
+const code = codeList.join('\n')
 
-export function render(_ctx, _cache) {
-  const _component_Component = _resolveComponent("Component")
-
-  console.log('_component_Component', _component_Component);
-
-  return (_openBlock(), _createElementBlock("div", _hoisted_1, [
-    _createTextVNode(_toDisplayString(_ctx.person) + " ", 1 /* TEXT */),
-    _createElementVNode("button", {
-      onClick: _cache[0] || (_cache[0] = (...args) => (_ctx.btnClick && _ctx.btnClick(...args)))
-    }, "李四"),
-    _createVNode(_component_Component)
-  ]))
-}
-_sfc_main_.render = render
-export default _sfc_main_
+fs.writeFile('./'+fileName+'.js', code, (err) => {
+    console.log('err', err);
+})

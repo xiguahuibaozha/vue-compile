@@ -8,7 +8,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import Component from './component.js'
+import Component from './component.vue'
 
 const person = ref({
     name: '张三'

@@ -1,13 +1,29 @@
-// 此文件运行在 Node.js 服务器上
 import { createSSRApp } from 'vue'
-// Vue 的服务端渲染 API 位于 `vue/server-renderer` 路径下
-import { renderToString } from 'vue/server-renderer'
+import { renderToString  } from 'vue/server-renderer'
+import express from 'express'
+const app = express()
 
-const app = createSSRApp({
-  data: () => ({ count: 1 }),
-  template: `<button @click="count++">{{ count }}</button>`
+// 导入你的 Vue 组件
+const App = await import('./component.js')
+
+app.get('*', async (req, res) => {
+  const app = createSSRApp(App)
+  const appContent = await renderToString(app)
+
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <title>Vue 3 SSR</title>
+      </head>
+      <body>
+        ${appContent}
+      </body>
+    </html>
+  `)
 })
 
-renderToString(app).then((html) => {
-  console.log(html)
+app.listen(3000, () => {
+  console.log('Server running at http://localhost:3000/')
 })
